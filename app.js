@@ -71,7 +71,7 @@ class NexusAssistant {
         this.recognition.onend = () => {
             if (this.isListening) {
                 const finalTranscript = this.userSpeech.innerText;
-                if (finalTranscript) {
+                if (finalTranscript && finalTranscript !== "...") {
                     this.processCommand(finalTranscript);
                 } else {
                     this.stopListening();
@@ -104,9 +104,13 @@ class NexusAssistant {
         });
 
         const storedVoiceIdx = localStorage.getItem('nexus_voice_idx');
-        if (storedVoiceIdx !== null) {
+        if (storedVoiceIdx !== null && this.voices[storedVoiceIdx]) {
             this.voiceSelect.value = storedVoiceIdx;
             this.selectedVoice = this.voices[storedVoiceIdx];
+        } else if (this.voices.length > 0) {
+            // Default to first voice if none stored
+            this.selectedVoice = this.voices[0];
+            this.voiceSelect.value = 0;
         }
     }
 
@@ -114,6 +118,9 @@ class NexusAssistant {
         this.micBtn.addEventListener('click', () => this.toggleListening());
         this.settingsBtn.addEventListener('click', () => this.showSettings());
         this.saveSettingsBtn.addEventListener('click', () => this.saveSettings());
+        this.voiceSelect.addEventListener('change', (e) => {
+            this.selectedVoice = this.voices[e.target.value];
+        });
     }
 
     toggleListening() {
@@ -211,8 +218,12 @@ class NexusAssistant {
         }
 
         const utterance = new SpeechSynthesisUtterance(text);
+        
+        // Ensure a voice is selected
         if (this.selectedVoice) {
             utterance.voice = this.selectedVoice;
+        } else if (this.voices.length > 0) {
+            utterance.voice = this.voices[0];
         }
 
         utterance.onstart = () => {
