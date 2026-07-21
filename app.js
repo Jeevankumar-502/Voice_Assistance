@@ -181,7 +181,7 @@ class NexusAssistant {
     }
 
     async getGeminiResponse(prompt) {
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.apiKey}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.apiKey}`;
         
         const systemInstruction = "You are Nexus, a premium, concise AI voice assistant. Keep your responses short, helpful, and natural for speech. Avoid long lists or complex markdown.";
         
@@ -200,12 +200,22 @@ class NexusAssistant {
         });
 
         if (!res.ok) {
-            const error = await res.json();
-            throw new Error(error.message || 'API Request Failed');
+            let message = `API Request Failed (${res.status})`;
+            try {
+                const error = await res.json();
+                message = error?.error?.message || message;
+            } catch (_) {
+                // Response wasn't JSON (e.g. network/proxy error page); keep default message
+            }
+            throw new Error(message);
         }
 
         const data = await res.json();
-        return data.candidates[0].content.parts[0].text;
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (!text) {
+            throw new Error('Empty response from Gemini');
+        }
+        return text;
     }
 
     displayResponse(text) {
