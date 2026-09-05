@@ -1,62 +1,81 @@
-async getGeminiResponse(prompt) {
-    const model = "gemini-3.5-flash";
+setupSpeechRecognition() {
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
 
-    const url =
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+    if (!SpeechRecognition) {
+        this.statusText.innerText =
+            "Speech recognition is not supported in this browser";
+        console.error("Speech Recognition API not supported");
+        return;
+    }
 
-    const systemInstruction =
-        "You are Nexus, a premium, concise AI voice assistant. " +
-        "Keep your responses short, helpful, and natural for speech. " +
-        "Avoid long lists or complex markdown.";
+    this.recognition = new SpeechRecognition();
 
-    const body = {
-        contents: [
-            {
-                role: "user",
-                parts: [
-                    {
-                        text: `${systemInstruction}\n\nUser: ${prompt}`
-                    }
-                ]
-            }
-        ]
+    this.recognition.continuous = false;
+    this.recognition.interimResults = true;
+    this.recognition.lang = "en-US";
+
+    this.recognition.onstart = () => {
+        console.log("Microphone started");
+
+        this.isListening = true;
+        this.setOrbState("listening");
+        this.statusText.innerText = "Listening...";
+        this.userSpeech.innerText = "";
     };
 
-    try {
-        const response = await fetch(url, {
-            method: "POST",
+    this.recognition.onresult = (event) => {
+        let transcript = "";
 
-            headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": this.apiKey
-            },
-
-            body: JSON.stringify(body)
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            console.error("Gemini API Error:", data);
-
-            throw new Error(
-                data?.error?.message ||
-                `Gemini API Error: ${response.status}`
-            );
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
         }
 
-        const text =
-            data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        transcript = transcript.trim();
 
-        if (!text) {
-            console.error("Unexpected Gemini response:", data);
-            throw new Error("Gemini returned an empty response.");
+        console.log("Recognized:", transcript);
+
+        if (transcript) {
+            this.userSpeech.innerText = transcript;
         }
+    };
 
-        return text;
+    this.recognition.onerror = (event) => {
+        console.error("Speech Recognition Error:", event.error);
 
-    } catch (error) {
-        console.error("Gemini request failed:", error);
-        throw error;
-    }
+        this.isListening = false;
+        this.setOrbState("idle");
+
+        if (event.error === "not-allowed") {
+            this.statusText.innerText =
+                "Microphone permission denied";
+        } else if (event.error === "no-speech") {
+            this.statusText.innerText =
+                "No speech detected. Try again.";
+        } else if (event.error === "audio-capture") {
+            this.statusText.innerText =
+                "Microphone not available";
+        } else {
+            this.statusText.innerText =
+                "Microphone error: " + event.error;
+        }
+    };
+
+    this.recognition.onend = () => {
+        console.log("Speech recognition ended");
+
+        if (this.isListening) {
+            this.isListening = false;
+
+            const text = this.userSpeech.innerText.trim();
+
+            if (text && text !== "...") {
+                this.processCommand(text);
+            } else {
+                this.setOrbState("idle");
+                this.statusText.innerText = "Ready";
+            }
+        }
+    };
 }
