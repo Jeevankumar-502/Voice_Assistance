@@ -2,7 +2,7 @@ class VoiceAssistant {
     constructor() {
         this.recognition = null;
         this.isListening = false;
-        this.apiKey = localStorage.getItem("AQ.Ab8RN6KcJ69Et56vVTcE1nPllvaQUmYxUfN7I89ba_4ItxI0cg") || "";
+        this.apiKey = localStorage.getItem("geminiApiKey") || "";
         
         // DOM Elements
         this.statusText = document.getElementById("status-text");
